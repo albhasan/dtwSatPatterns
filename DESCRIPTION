@@ -1,0 +1,25 @@
+Package: dtwSatPatterns
+Type: Package
+Title: Pattern-creation tools for the dtwSat package
+Version: 0.1
+Date: 2016-10-19
+Author: Alber Sanchez
+Maintainer: Alber Sanchez <alber.ipia@inpe.br>
+Description: Pattern-creation tools for the dtwSat package.
+Depends:
+    R (>= 3.0.0)
+Imports:
+    methods,
+    parallel,
+    roxygen2,
+    testthat,
+    ggplot2,
+    rgdal,
+    rgeos,
+    utils,
+    sp,
+    stats,
+    scidb,
+    wtss.R
+License: MIT + file LICENSE
+RoxygenNote: 5.0.1
