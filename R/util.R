@@ -19,10 +19,11 @@
 # Get time series data
 #
 # @param con          A character. String conection to the data source
-# @param sps          An SpatialPoints object
-# @return             
-.getTimeSeries <- function(con, sps){
+# @param spdf         An SpatialPointsDataFrame object. It contais the sample points (SpatialPoints) and a data.frame made of  id, class, start, and end
+# @return             A list of data.frame. Each data.frame is the data retrieved for each sample point
+.getTimeSeries <- function(con, spdf){
   samples.list <- list()  
+  sps <- SpatialPoints(coords = coordinates(spdf), proj4string = CRS(proj4string(spdf)))
   if(con$type == "scidb"){
     # project to MODIS SINUSOIDAL
     modis.proj <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m +no_defs"
@@ -37,7 +38,9 @@
     scidbconnect(host = con$host, port = con$port)                              # db connection
     for(i in 1:length(afl.vec)){
       samples.list[[i]] <- tryCatch({
-        iquery(query = afl.vec[i], return = T, binary = T)
+        df <- iquery(query = afl.vec[i], return = T, binary = T)
+        df["tiddate"] <- as.Date(as.vector(unlist(.time_id2date(unlist(df["time_id"]), period = 16))))
+        df
       }, error = function(e){
         return(NA)                                                              # error while retrieving data from SciDB
       })
@@ -47,7 +50,7 @@
     cv <- describeCoverage(ts_server, con$coverage)
     xy.mat <- coordinates(sps)
     for(i in 1:nrow(xy.mat)){
-      samples.list[[i]] <- tryCatch({
+      tryCatch({
         samples.list[[i]] <- timeSeries(
           ts_server, 
           coverages = con$coverage, 
@@ -55,18 +58,34 @@
           longitude = xy.mat[i, 1], 
           latitude = xy.mat[i, 2], 
           start = "2000-02-18", 
-          end = "2020-01-01"
+          end = "2016-01-01"
         )
       }, error = function(e){
         return(NA)                                                              # error while retrieving data from a WTSS server
       })
     }
+    samples.list <- lapply(samples.list, function(x){
+      df <- as.data.frame(coredata(x[[1]][["attributes"]]))
+      ind <- index(x[[1]][["attributes"]])
+      df["tiddate"] <- ind
+      return(df)
+    })
   }else{
     stop("Unknown data source")
   }
+  # filter by dates
+  samples.list <- lapply(1:length(samples.list), function(x, spdf, samples.list){
+    df <- samples.list[[x]]
+    df <- df[df$tiddate > as.Date(spdf[["start"]][x]) & df$tiddate < as.Date(spdf[["end"]][x]), ]
+  }, spdf = spdf, samples.list = samples.list)
+  return(samples.list)
+}
 
+
+# compute the DTW distance
+.dtwDistance <- function(samples.list){
   # compute DTW distances for each attribute
-  res <- parallel::mclapply(1:length(samples.list), function(y, samples){
+  dtw.dists <- parallel::mclapply(1:length(samples.list), function(y, samples){
     dts.df <- data.frame()
     for(i in 1:length(samples)){
       test <- samples.list[[i]]
@@ -83,9 +102,8 @@
     return(dts.df)
   }, 
   samples = samples.list)
-  
+  return(dtw.dists)
 }
-
 
 
 
