@@ -7,6 +7,13 @@
 # =======================================================================================
 
 
+.triangularMatrix <- function(n, up, down){
+  trian.mat <- matrix(up, ncol = n, nrow = n)
+  for(i in 1:nrow(trian.mat)){for(j in 1:ncol(trian.mat)){if(i > j){trian.mat[i, j] <- down}}}
+  return(trian.mat)
+}
+
+
 
 
 
@@ -76,7 +83,7 @@
   # filter by dates
   samples.list <- lapply(1:length(samples.list), function(x, spdf, samples.list){
     df <- samples.list[[x]]
-    df <- df[df$tiddate > as.Date(spdf[["start"]][x]) & df$tiddate < as.Date(spdf[["end"]][x]), ]
+    df <- df[df$tiddate > as.Date(spdf[["from"]][x]) & df$tiddate < as.Date(spdf[["to"]][x]), ]
   }, spdf = spdf, samples.list = samples.list)
   return(samples.list)
 }
