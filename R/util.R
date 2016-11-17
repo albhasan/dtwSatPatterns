@@ -90,29 +90,39 @@
 
 
 # compute the DTW distance
-.dtwDistance <- function(samples.list){
+#
+# @param samples.list A list of data.frame. Each data.frame is the data of a sample point
+# @param label.vec A vector of character. The label or for each time series in samples.list
+# @return             A list of matrices, one metrix per unique label. These matrices are the DTW distances between time series of sample points
+.dtwDistance <- function(samples.list, label.vec){
   # compute DTW distances for each attribute
-  dtw.dists <- parallel::mclapply(1:length(samples.list), function(y, samples){
-    dts.df <- data.frame()
-    for(i in 1:length(samples)){
-      test <- samples.list[[i]]
-      ref <- samples.list[[y]]
-      dts.vec <- rep(0, time = ncol(ref))
-      if(i != y){
-        for(j in 1:ncol(ref)){
-          dts.vec[j] <- dtw(x = test[, j], y = ref[, j])$distance
+  res <- list()
+  labs <- unique(label.vec)
+  for(l in labs){
+    subsamples.list <- samples.list[label.vec == l]
+    dtw.dists <- parallel::mclapply(1:length(subsamples.list), function(y, subsamples.list){
+      dts.df <- data.frame()
+      #samples <- subsamples.list[[y]]
+      for(i in 1:length(subsamples.list)){                                      # iterate subssamples
+        test <- subsamples.list[[i]]
+        ref <- subsamples.list[[y]]
+        dts.vec <- rep(0, time = ncol(ref))
+        if(i != y){
+          for(j in 1:ncol(ref)){                                                # iterate columns
+            dts.vec[j] <- dtw(x = test[, j], y = ref[, j])$distance
+          }
         }
+        dts.df <- rbind(dts.df, dts.vec)
       }
-      dts.df <- rbind(dts.df, dts.vec)
-    }
-    colnames(dts.df) <- colnames(samples.list[[y]])
-    return(dts.df)
-  }, 
-  samples = samples.list)
-  return(dtw.dists)
+      colnames(dts.df) <- colnames(subsamples.list[[y]])
+      return(dts.df)
+    }, 
+    subsamples.list = subsamples.list, 
+    mc.cores = detectCores())
+    res[[l]] <- dtw.dists
+  }
+  return(res)
 }
-
-
 
 
 
